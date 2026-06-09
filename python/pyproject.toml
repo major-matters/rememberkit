@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rememberkit"
+version = "0.0.1"
+description = "Governed, portable memory for AI agents. v0, experimental."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Major Labs" }]
+keywords = ["ai-agents", "agent-memory", "provenance", "consent", "portable", "ed25519", "agentic-web"]
+# Vetted constant-time Ed25519 + RFC 8785 canonicalization. Pure-Python / sorted-JSON
+# fallbacks exist (see signing.py / canonical.py) so it still runs with zero deps.
+dependencies = [
+  "cryptography>=42",
+  "rfc8785>=0.1.2",
+]
+
+[project.optional-dependencies]
+test = ["hypothesis>=6", "bandit>=1.7"]
+
+[project.urls]
+Homepage = "https://majorlabs.co"
+
+[tool.setuptools]
+packages = ["rememberkit"]
+
+[tool.setuptools.package-data]
+rememberkit = ["py.typed"]
