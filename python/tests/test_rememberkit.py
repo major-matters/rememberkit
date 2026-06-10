@@ -156,6 +156,49 @@ def test_id_is_deterministic():
     assert a == b
 
 
+# --- cross-agent censorship (audit 2026-06-10 finding #1) -------------------
+
+def test_cross_agent_forget_is_ignored():
+    """A different agent's tombstone must NOT remove this agent's record."""
+    key1, _ = generate_keypair()
+    mem1 = Memory(key1, agent="agent-1", subject="user-123")
+    victim = mem1.remember({"fact": "keep me"}, kind="fact")
+
+    key2, _ = generate_keypair()
+    attacker = Memory(key2, agent="agent-2", subject="user-123")
+    attacker.forget(victim["id"])  # forge a tombstone against agent-1's record
+
+    combined = Memory(None, agent=None, subject="user-123",
+                      records=mem1.records + attacker.records)
+    ids = {r["id"] for r in combined.recall()}
+    assert victim["id"] in ids, "cross-agent forget censored another agent's record"
+
+
+def test_cross_agent_supersede_is_ignored():
+    """A different agent cannot overwrite this agent's record via supersedes."""
+    key1, _ = generate_keypair()
+    mem1 = Memory(key1, agent="agent-1", subject="user-123")
+    victim = mem1.remember({"fact": "true value"}, kind="fact")
+
+    key2, _ = generate_keypair()
+    attacker = Memory(key2, agent="agent-2", subject="user-123")
+    attacker.remember({"fact": "attacker value"}, kind="fact", supersedes=victim["id"])
+
+    combined = Memory(None, agent=None, subject="user-123",
+                      records=mem1.records + attacker.records)
+    contents = [r["content"] for r in combined.recall()]
+    assert {"fact": "true value"} in contents, "cross-agent supersede overwrote a record"
+
+
+def test_same_agent_forget_still_works():
+    """The owning agent can still retract its own record."""
+    key1, _ = generate_keypair()
+    mem1 = Memory(key1, agent="agent-1", subject="user-123")
+    rec = mem1.remember({"fact": "drop me"}, kind="fact")
+    mem1.forget(rec["id"])
+    assert rec["id"] not in {r["id"] for r in mem1.recall()}
+
+
 if __name__ == "__main__":
     import traceback
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]

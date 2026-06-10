@@ -88,3 +88,8 @@ We actively want researcher eyes on this. If you find a fail-open, a signature b
 way to pass off one agent's memory as another's, or any way to defeat a guarantee in this
 document, please open an issue. Credit given. The shared crypto core (Ed25519 + RFC 8785
 canonicalization) and the record/pack verification are the highest-value targets.
+
+## v0.0.2 hardening (2026-06-10 internal audit)
+
+- **Cross-agent censorship fixed.** A `supersedes`/tombstone edge is now honored only when the superseding record shares the target record's `agent`. Previously any other trusted agent could forge a tombstone or superseding record to delete or overwrite this agent's memory while the pack still verified as valid.
+- **Canonicalization fallback** now fails closed on floats / out-of-safe-range integers instead of producing a divergent content-address `id`; the `rfc8785`/`canonicalize` path remains byte-identical across Python and TypeScript.

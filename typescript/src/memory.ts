@@ -102,8 +102,19 @@ function isRecordObject(r: unknown): r is Record {
 }
 
 function liveIds(records: Record[]): Set<string> {
+  // A supersedes/tombstone edge is only honored when written by the SAME agent
+  // as its target. Without this, any other trusted agent could forge a
+  // supersedes/tombstone to censor or overwrite this agent's memory
+  // (audit 2026-06-10 finding #1).
+  const byId = new Map<string, Record>();
+  for (const r of records) if (isRecordObject(r) && r.id) byId.set(r.id, r);
   const superseded = new Set<string>();
-  for (const r of records) if (isRecordObject(r) && r.supersedes) superseded.add(r.supersedes);
+  for (const r of records) {
+    if (!isRecordObject(r) || !r.supersedes) continue;
+    const target = byId.get(r.supersedes);
+    if (target && target.agent !== r.agent) continue; // cross-agent: ignore
+    superseded.add(r.supersedes);
+  }
   const live = new Set<string>();
   for (const r of records) {
     if (!isRecordObject(r)) continue;

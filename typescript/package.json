@@ -1,6 +1,6 @@
 {
   "name": "rememberkit",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Governed, portable memory for AI agents. v0, experimental.",
   "type": "module",
   "license": "MIT",

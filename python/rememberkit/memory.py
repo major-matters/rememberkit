@@ -104,11 +104,25 @@ def build_record(*, subject, agent, kind, scope, consent, content, private_key,
 def _live_ids(records: List[Dict]) -> set:
     """Ids that are still in effect: not superseded by a later record, not revoked.
 
-    A record is dropped if any record names it in `supersedes` (a correction or a
-    tombstone replaces it), and a tombstone (revoked=True) is itself never live.
-    Non-dict junk in the list is ignored rather than trusted."""
-    superseded = {r.get("supersedes") for r in records
-                  if isinstance(r, dict) and r.get("supersedes")}
+    A record is dropped if a record by the SAME agent names it in `supersedes` (a
+    correction or a tombstone replaces it), and a tombstone (revoked=True) is
+    itself never live. The same-agent rule is load-bearing: without it, any other
+    trusted agent could forge a supersedes/tombstone to censor or overwrite this
+    agent's memory (audit 2026-06-10 finding #1). Non-dict junk is ignored."""
+    by_id = {r.get("id"): r for r in records if isinstance(r, dict) and r.get("id")}
+    superseded = set()
+    for r in records:
+        if not isinstance(r, dict):
+            continue
+        target_id = r.get("supersedes")
+        if not target_id:
+            continue
+        target = by_id.get(target_id)
+        # Cross-agent supersession is ignored: an agent may only retract or
+        # replace its own records.
+        if target is not None and target.get("agent") != r.get("agent"):
+            continue
+        superseded.add(target_id)
     live = set()
     for r in records:
         if not isinstance(r, dict):

@@ -121,3 +121,41 @@ test("cross-language: a Python-signed pack verifies in TypeScript", () => {
   };
   assert.equal(verifyPack(PACK, { trustedKeys: [PUB] }).valid, true);
 });
+
+// --- cross-agent censorship (audit 2026-06-10 finding #1) -------------------
+
+test("a different agent's tombstone cannot remove this agent's record", () => {
+  const k1 = generateKeypair();
+  const mem1 = new Memory(k1.privateKey, "agent-1", "user-123");
+  const victim = mem1.remember({ fact: "keep me" }, { kind: "fact" });
+
+  const k2 = generateKeypair();
+  const attacker = new Memory(k2.privateKey, "agent-2", "user-123");
+  attacker.forget(victim.id);
+
+  const combined = new Memory(null, null, "user-123", [...mem1.records, ...attacker.records]);
+  const ids = new Set(combined.recall().map((r) => r.id));
+  assert.ok(ids.has(victim.id), "cross-agent forget censored another agent's record");
+});
+
+test("a different agent cannot overwrite this agent's record via supersedes", () => {
+  const k1 = generateKeypair();
+  const mem1 = new Memory(k1.privateKey, "agent-1", "user-123");
+  const victim = mem1.remember({ fact: "true value" }, { kind: "fact" });
+
+  const k2 = generateKeypair();
+  const attacker = new Memory(k2.privateKey, "agent-2", "user-123");
+  attacker.remember({ fact: "attacker value" }, { kind: "fact", supersedes: victim.id });
+
+  const combined = new Memory(null, null, "user-123", [...mem1.records, ...attacker.records]);
+  const contents = combined.recall().map((r) => JSON.stringify(r.content));
+  assert.ok(contents.includes(JSON.stringify({ fact: "true value" })), "cross-agent supersede overwrote a record");
+});
+
+test("the owning agent can still retract its own record", () => {
+  const k1 = generateKeypair();
+  const mem1 = new Memory(k1.privateKey, "agent-1", "user-123");
+  const rec = mem1.remember({ fact: "drop me" }, { kind: "fact" });
+  mem1.forget(rec.id);
+  assert.ok(!new Set(mem1.recall().map((r) => r.id)).has(rec.id));
+});
