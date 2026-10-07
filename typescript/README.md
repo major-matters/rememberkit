@@ -33,4 +33,6 @@ without it (and without `allowUnverifiedIssuer`) verification **fails closed** a
 throws on hostile input. Tamper-evident, not tamper-proof; consent is an advisory marker,
 not access control. See [`../SECURITY.md`](../SECURITY.md).
 
-Runs on Node 22.6+. License: MIT.
+Runs on Node 22.6+. Type stripping is on by default from Node 22.18; on 22.6 to
+22.17 the repository's `npm test` passes `--experimental-strip-types` for you,
+and the published package is compiled and needs no flag. License: MIT.
