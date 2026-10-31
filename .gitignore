@@ -12,3 +12,5 @@ typescript/dist/
 *.tsbuildinfo
 # OS
 .DS_Store
+typescript.log
+typescript.url
