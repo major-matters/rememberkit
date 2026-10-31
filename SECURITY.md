@@ -72,9 +72,20 @@ against the code) was run before release. Fixed and regression-tested:
   than crashing `recall`; `share` is scoped to the store's subject by default so a
   multi-subject store does not leak one subject's records to another's peer.
 
-## Reporting
+## Reporting a vulnerability
 
 This is a pre-release v0 prototype. Do not rely on it for anything that matters yet.
+
+Please report vulnerabilities privately via GitHub's private vulnerability
+reporting on this repository (Security tab -> Report a vulnerability). It is
+enabled and monitored.
+
+We follow the same standard we ask of others: acknowledgment within 7 days, a
+fix or a plan within 45, and credit to reporters who want it. Our coordinated
+disclosure process for the wider MCP ecosystem is described at
+https://majorlabs.co/security.
+
+Please do not open public issues for security reports.
 
 ## Audit status (v0)
 
@@ -86,7 +97,7 @@ and reuses the same Ed25519 + RFC 8785 core as the other Major Labs primitives, 
 
 We actively want researcher eyes on this. If you find a fail-open, a signature bypass, a
 way to pass off one agent's memory as another's, or any way to defeat a guarantee in this
-document, please open an issue. Credit given. The shared crypto core (Ed25519 + RFC 8785
+document, please report it privately (see above). Credit given. The shared crypto core (Ed25519 + RFC 8785
 canonicalization) and the record/pack verification are the highest-value targets.
 
 ## v0.0.2 hardening (2026-06-10 internal audit)

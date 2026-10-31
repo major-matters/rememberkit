@@ -39,6 +39,34 @@ from .signing import b64, public_from_seed, sign as _sign, unb64
 
 VERSION = "rememberkit/v0"
 
+_MAX_SAFE_INT = 2**53 - 1
+_MAX_CONTENT_DEPTH = 64
+
+
+def _validate_content(content, _depth: int = 0) -> None:
+    """Reject content that would crash or diverge at canonicalization time, with a clear
+    error, so hostile tool output cannot DoS the remember path or break cross-language
+    ids (same rule as WitnessKit's payload check). Integers must stay within the
+    IEEE-754 safe range; nesting is bounded."""
+    if _depth > _MAX_CONTENT_DEPTH:
+        raise ValueError(f"content nesting exceeds {_MAX_CONTENT_DEPTH} levels")
+    if isinstance(content, bool) or content is None or isinstance(content, (str, float)):
+        return
+    if isinstance(content, int):
+        if not -_MAX_SAFE_INT <= content <= _MAX_SAFE_INT:
+            raise ValueError("content integer outside the JS-safe range (2^53-1); "
+                             "stringify large numbers before remembering them")
+        return
+    if isinstance(content, dict):
+        for v in content.values():
+            _validate_content(v, _depth + 1)
+        return
+    if isinstance(content, (list, tuple)):
+        for v in content:
+            _validate_content(v, _depth + 1)
+        return
+    raise ValueError(f"content contains a non-JSON-serializable type: {type(content).__name__}")
+
 # Recognized consent markers, least to most open. Free-form strings are allowed,
 # but these are the ones `recall(max_consent=...)` understands as an ordering.
 CONSENT_LEVELS = ("private", "shareable", "public")
@@ -76,6 +104,7 @@ def record_id(*, subject, agent, kind, scope, consent, content, timestamp, super
 def build_record(*, subject, agent, kind, scope, consent, content, private_key,
                  timestamp=None, supersedes=None, revoked=False) -> Dict:
     timestamp = timestamp or _now_iso()
+    _validate_content(content)
     rid = record_id(
         subject=subject, agent=agent, kind=kind, scope=scope, consent=consent,
         content=content, timestamp=timestamp, supersedes=supersedes, revoked=revoked,

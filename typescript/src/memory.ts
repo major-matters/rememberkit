@@ -27,6 +27,33 @@ export interface Record {
   signature: { alg: "Ed25519"; public_key: string; value: string };
 }
 
+const MAX_SAFE = Number.MAX_SAFE_INTEGER;
+const MAX_CONTENT_DEPTH = 64;
+
+/** Reject content that would crash or diverge at canonicalization time, with a clear
+ *  error, so hostile tool output cannot DoS the remember path or break cross-language
+ *  ids (same rule as WitnessKit's payload check; audit 2026-10-31). */
+export function validateContent(content: unknown, depth = 0): void {
+  if (depth > MAX_CONTENT_DEPTH) throw new Error(`content nesting exceeds ${MAX_CONTENT_DEPTH} levels`);
+  if (content === null || typeof content === "string" || typeof content === "boolean") return;
+  if (typeof content === "number") {
+    if (!Number.isFinite(content)) throw new Error("content number must be finite");
+    if (Number.isInteger(content) && Math.abs(content) > MAX_SAFE) {
+      throw new Error("content integer outside the JS-safe range (2^53-1); stringify large numbers before remembering them");
+    }
+    return;
+  }
+  if (Array.isArray(content)) {
+    for (const v of content) validateContent(v, depth + 1);
+    return;
+  }
+  if (typeof content === "object") {
+    for (const v of Object.values(content as { [key: string]: unknown })) validateContent(v, depth + 1); // (Record here is the memory record type)
+    return;
+  }
+  throw new Error(`content contains a non-JSON-serializable type: ${typeof content}`);
+}
+
 function nowIso(): string {
   return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 }
@@ -72,6 +99,7 @@ export function buildRecord(opts: {
   const timestamp = opts.timestamp ?? nowIso();
   const supersedes = opts.supersedes ?? null;
   const revoked = opts.revoked ?? false;
+  validateContent(opts.content);
   const id = recordId({
     subject: opts.subject, agent: opts.agent, kind: opts.kind, scope: opts.scope,
     consent: opts.consent, content: opts.content, timestamp, supersedes, revoked,

@@ -26,7 +26,7 @@ from .memory import Memory, VERSION, CONSENT_LEVELS, build_record, record_id
 from .signing import generate_keypair, public_from_seed, b64
 from .verify import verify_record, verify_pack
 
-__version__ = "0.0.1"
+__version__ = "0.0.3"
 
 __all__ = [
     "Memory",

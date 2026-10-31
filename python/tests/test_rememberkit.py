@@ -213,3 +213,45 @@ if __name__ == "__main__":
             traceback.print_exc()
     print(f"\n{passed}/{len(fns)} passed")
     sys.exit(0 if passed == len(fns) else 1)
+
+
+# --- content validation (audit 2026-10-31, L7) ---------------------------------------------
+
+def test_content_oversize_int_rejected():
+    """An out-of-safe-range int must raise a clean error before anything is signed."""
+    mem, _ = make()
+    try:
+        mem.remember({"n": 2**53}, kind="fact")
+        assert False, "oversize int content was not rejected"
+    except ValueError as e:
+        assert "safe range" in str(e)
+    assert mem.records == []  # nothing was appended
+
+
+def test_content_deep_nesting_rejected():
+    deep = current = {}
+    for _ in range(80):
+        current["x"] = {}
+        current = current["x"]
+    mem, _ = make()
+    try:
+        mem.remember(deep, kind="fact")
+        assert False, "deeply nested content was not rejected"
+    except ValueError as e:
+        assert "nesting" in str(e)
+
+
+def test_content_non_json_type_rejected():
+    mem, _ = make()
+    try:
+        mem.remember({"when": object()}, kind="fact")
+        assert False, "non-JSON content was not rejected"
+    except ValueError:
+        pass
+
+
+def test_content_within_limits_still_remembered():
+    mem, pub = make()
+    # No float here: the dependency-free canonicalization fallback refuses floats by design.
+    r = mem.remember({"n": 2**53 - 1, "list": [1, -(2**53 - 1), None, True, "s"], "deep": {"a": {"b": {"c": 1}}}})
+    assert verify_record(r, trusted_keys=[pub])["valid"]

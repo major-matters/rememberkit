@@ -159,3 +159,31 @@ test("the owning agent can still retract its own record", () => {
   mem1.forget(rec.id);
   assert.ok(!new Set(mem1.recall().map((r) => r.id)).has(rec.id));
 });
+
+// --- content validation (audit 2026-10-31, L7) ---------------------------------------------
+
+test("oversize int content is rejected before anything is signed", () => {
+  const { mem } = make();
+  assert.throws(() => mem.remember({ n: 2 ** 53 }), /safe range/);
+  assert.equal(mem.records.length, 0);
+});
+
+test("deeply nested content is rejected", () => {
+  const deep: Record<string, unknown> = {};
+  let cur = deep;
+  for (let i = 0; i < 80; i++) { cur.x = {}; cur = cur.x as Record<string, unknown>; }
+  const { mem } = make();
+  assert.throws(() => mem.remember(deep), /nesting/);
+});
+
+test("non-finite and non-JSON content is rejected", () => {
+  const { mem } = make();
+  assert.throws(() => mem.remember({ n: Infinity }), /finite/);
+  assert.throws(() => mem.remember({ f: () => 1 }), /non-JSON/);
+});
+
+test("content within the limits is still remembered and verifies", () => {
+  const { mem, pub } = make();
+  const r = mem.remember({ n: 2 ** 53 - 1, list: [1, -(2 ** 53 - 1), null, true, "s"], deep: { a: { b: { c: 1 } } } });
+  assert.equal(verifyRecord(r, { trustedKeys: [pub] }).valid, true);
+});
